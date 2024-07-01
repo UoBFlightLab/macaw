@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from pymavlink import mavutil
-from std_msgs.msg import Empty,UInt8
+from std_msgs.msg import Empty,Bool,UInt8
 
 class Macaw(Node):
     """
@@ -24,6 +24,7 @@ class Macaw(Node):
         # set up outbound ROS publishers
         self.ros_publishers = {}
         self.add_ros_publisher(UInt8,'status')
+        self.add_ros_publisher(Bool,'is_armed')
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str','tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
@@ -55,6 +56,12 @@ class Macaw(Node):
         ros_msg = UInt8()
         ros_msg.data = mav_msg.system_status
         self.ros_publishers['status'].publish(ros_msg)
+        ros_msg = Bool()
+        if mav_msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
+            ros_msg.data = True
+        else:
+            ros_msg.data = False 
+        self.ros_publishers['is_armed'].publish(ros_msg)
 
     def ros_arm_callback(self,ros_msg):
         self.mav.mav.command_long_send(self.sysid,
