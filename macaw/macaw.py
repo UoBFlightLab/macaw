@@ -3,6 +3,7 @@ from rclpy.node import Node
 from pymavlink import mavutil
 from std_msgs.msg import Empty,Bool,UInt8,Float64,String
 from sensor_msgs.msg import NavSatFix
+from geometry_msgs.msg import Twist
 
 class Macaw(Node):
     """
@@ -41,7 +42,9 @@ class Macaw(Node):
         # ROS subscribers
         self.add_ros_subscriber(Empty,'arm',self.ros_arm_callback)
         self.add_ros_subscriber(Float64,'takeoff',self.ros_takeoff_callback)
-        self.add_ros_subscriber(String,'set_mode',self.ros_mode_callback)
+        self.add_ros_subscriber(Empty,'land',self.ros_land_callback)
+        self.add_ros_subscriber(String,'cmd_mode',self.ros_mode_callback)
+        self.add_ros_subscriber(Twist,'cmd_vel',self.ros_vel_callback)
 
     def add_ros_publisher(self,ros_type,topic):
         topic_root = f'macaw/sysid{self.sysid}/'
@@ -111,6 +114,13 @@ class Macaw(Node):
                                        0,0,0,0,0,0,0,
                                        takeoff_alt)
 
+    def ros_land_callback(self,ros_msg):
+        self.get_logger().info('Land')
+        self.mav.mav.command_long_send(self.sysid,
+                                       1,
+                                       mavutil.mavlink.MAV_CMD_NAV_LAND,
+                                       0,0,0,0,0,0,0,0)
+
     def ros_mode_callback(self,ros_msg):
         new_mode_name = ros_msg.data
         if new_mode_name in self.mav.mode_mapping():
@@ -121,6 +131,34 @@ class Macaw(Node):
                                        new_mode_num)
         else:
             self.get_logger().info(f'Unknown mode {new_mode_name}')
+
+    def ros_vel_callback(self,ros_msg):
+        self.mav.mav.set_position_target_global_int_send(
+            0, # ms since boot
+            self.sysid, 1,
+            coordinate_frame=mavutil.mavlink.MAV_FRAME_GLOBAL_INT,
+            type_mask=( # ignore everything except z position
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE |
+                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE |
+                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE |
+                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+                # DON'T mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE #|
+                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+            ), lat_int=0, lon_int=0, alt=0, # (x, y WGS84 frame pos), z [m]
+            vx=ros_msg.linear.x,
+            vy=ros_msg.linear.y,
+            vz=ros_msg.linear.z, # velocities in NED frame [m/s] 
+            afx=0, afy=0, afz=0, yaw=0,
+            yaw_rate=ros_msg.angular.z
+            # accelerations in NED frame [N], yaw, yaw_rate
+            #  (all not supported yet, ignored in GCS Mavlink)
+        )
 
 def main(args=None):
     rclpy.init(args=args)
