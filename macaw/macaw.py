@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from pymavlink import mavutil
-from std_msgs.msg import Empty,Bool,UInt8
+from std_msgs.msg import Empty,Bool,UInt8,Float64
 from sensor_msgs.msg import NavSatFix
 
 class Macaw(Node):
@@ -23,6 +23,7 @@ class Macaw(Node):
         self.add_ros_publisher(UInt8,'status')
         self.add_ros_publisher(Bool,'is_armed')
         self.add_ros_publisher(NavSatFix,'gps')
+        self.add_ros_publisher(Float64,'altitude_asl')
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str','tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
@@ -88,6 +89,9 @@ class Macaw(Node):
         ros_msg.longitude = mav_msg.lon/1e7
         ros_msg.altitude = mav_msg.alt_ellipsoid/1e3
         self.ros_publishers['gps'].publish(ros_msg)
+        ros_msg = Float64()
+        ros_msg.data = mav_msg.alt/1e3
+        self.ros_publishers['altitude_asl'].publish(ros_msg)
 
     def ros_arm_callback(self,ros_msg):
         self.mav.mav.command_long_send(self.sysid,
