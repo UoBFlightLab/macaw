@@ -33,9 +33,9 @@ class Macaw(Node):
         # set up inbound MAVlink subscribers
         self.mav_subscribers = {}
         self.add_mav_subscriber('HEARTBEAT', self.mav_heartbeat_callback)
+        self.add_mav_subscriber('STATUSTEXT', self.mav_text_callback)
         self.add_mav_subscriber('GPS_RAW_INT', self.mav_gps_callback, interval=1e6)
-        self.mav_messages = list(self.mav_subscribers.keys())
-        self.get_logger().info(f'Ready for MAVlink messages: {self.mav_messages}')
+        self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
@@ -69,13 +69,16 @@ class Macaw(Node):
 
     def timer_callback(self):
         # process inbound MAVlink messages
-        mav_msg = self.mav.recv_match(type=self.mav_messages, blocking=False)
+        mav_msg = self.mav.recv_match()
         if mav_msg:
             mav_msg_type = mav_msg.get_type()
             mav_msg_sender = mav_msg.get_srcSystem()
-            self.get_logger().info(f'Got {mav_msg_type} from {mav_msg_sender}')
-            if mav_msg_sender==self.sysid:
-                self.mav_subscribers[mav_msg_type](mav_msg)
+            if mav_msg_type in self.mav_subscribers:
+                self.get_logger().info(f'Got {mav_msg_type} from {mav_msg_sender}')
+                if mav_msg_sender==self.sysid:
+                    self.mav_subscribers[mav_msg_type](mav_msg)
+            else:
+                self.get_logger().info(f'Ignoring {mav_msg_type} from {mav_msg_sender}')
 
     def mav_heartbeat_callback(self,mav_msg):
         ros_msg = UInt8()
@@ -87,6 +90,10 @@ class Macaw(Node):
         else:
             ros_msg.data = False
         self.ros_publishers['is_armed'].publish(ros_msg)
+
+    def mav_text_callback(self,mav_msg):
+        msg_sender = mav_msg.get_srcSystem()
+        self.get_logger().info(f'STATUSTEXT from {msg_sender}: {mav_msg.text}')
 
     def mav_gps_callback(self,mav_msg):
         ros_msg = NavSatFix()
@@ -147,7 +154,7 @@ class Macaw(Node):
                 mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
                 mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
                 mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE |
-                # DON'T mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET |
+                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET |
                 mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE #|
                 # mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
             ), lat_int=0, lon_int=0, alt=0, # (x, y WGS84 frame pos), z [m]
