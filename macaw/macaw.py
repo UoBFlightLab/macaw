@@ -83,6 +83,7 @@ class Macaw(Node):
         ros_msg = NavSatFix()
         ros_msg.latitude = mav_msg.lat/1e7
         ros_msg.longitude = mav_msg.lon/1e7
+        ros_msg.altitude = mav_msg.alt_ellipsoid/1e3
         self.ros_publishers['gps'].publish(ros_msg)
 
     def ros_arm_callback(self,ros_msg):
