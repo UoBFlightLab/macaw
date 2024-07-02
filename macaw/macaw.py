@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from pymavlink import mavutil
-from std_msgs.msg import Empty,Bool,UInt8,Float64
+from std_msgs.msg import Empty,Bool,UInt8,Float64,String
 from sensor_msgs.msg import NavSatFix
 
 class Macaw(Node):
@@ -38,8 +38,9 @@ class Macaw(Node):
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
-        # ROS subscribers
+        # ROS subscribersarm_callback
         self.add_ros_subscriber(Empty,'arm',self.ros_arm_callback)
+        self.add_ros_subscriber(String,'set_mode',self.ros_mode_callback)
 
     def add_ros_publisher(self,ros_type,topic):
         topic_root = f'macaw/sysid{self.sysid}/'
@@ -98,6 +99,17 @@ class Macaw(Node):
                                        1,
                                        mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                        0,True,0,0,0,0,0,0)
+
+    def ros_mode_callback(self,ros_msg):
+        new_mode_name = ros_msg.data
+        if new_mode_name in self.mav.mode_mapping():
+            new_mode_num = self.mav.mode_mapping()[new_mode_name]
+            self.get_logger().info(f'Changing to {new_mode_name} mode ({new_mode_num})')
+            self.mav.mav.set_mode_send(self.sysid,
+                                       mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+                                       new_mode_num)
+        else:
+            self.get_logger().info(f'Unknown mode {new_mode_name}')
 
 def main(args=None):
     rclpy.init(args=args)
