@@ -14,20 +14,20 @@ class Macaw(Node):
         # ROS groundwork
         self.node_name = 'macaw'
         super().__init__(self.node_name)
-        # MAVlink system ID
+        # identify target MAVlink system ID
         self.declare_parameter('mavlink_sysid',1)
         self.sysid = self.get_parameter('mavlink_sysid').value
         self.get_logger().info(f'Will talk to SYSID {self.sysid}')
-        # set up inbound MAVlink subscribers
-        self.mav_subscribers = {'HEARTBEAT': self.mav_heartbeat_callback,
-                                'GPS_RAW_INT': self.mav_gps_callback}
-        self.mav_messages = list(self.mav_subscribers.keys())
-        self.get_logger().info(f'Ready for MAVlink messages: {self.mav_messages}')
         # set up outbound ROS publishers
         self.ros_publishers = {}
         self.add_ros_publisher(UInt8,'status')
         self.add_ros_publisher(Bool,'is_armed')
         self.add_ros_publisher(NavSatFix,'gps')
+        # set up inbound MAVlink subscribers
+        self.mav_subscribers = {'HEARTBEAT': self.mav_heartbeat_callback,
+                                'GPS_RAW_INT': self.mav_gps_callback}
+        self.mav_messages = list(self.mav_subscribers.keys())
+        self.get_logger().info(f'Ready for MAVlink messages: {self.mav_messages}')
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str','tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
@@ -54,8 +54,10 @@ class Macaw(Node):
         mav_msg = self.mav.recv_match(type=self.mav_messages, blocking=False)
         if mav_msg:
             mav_msg_type = mav_msg.get_type()
-            self.get_logger().info(f'Got {mav_msg_type}')
-            self.mav_subscribers[mav_msg_type](mav_msg)
+            mav_msg_sender = mav_msg.get_srcSystem()
+            self.get_logger().info(f'Got {mav_msg_type} from {mav_msg_sender}')
+            if mav_msg_sender==self.sysid:
+                self.mav_subscribers[mav_msg_type](mav_msg)
 
     def request_mav_data(self):
         self.mav.mav.command_long_send(self.sysid,
