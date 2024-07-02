@@ -38,8 +38,9 @@ class Macaw(Node):
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
-        # ROS subscribersarm_callback
+        # ROS subscribers
         self.add_ros_subscriber(Empty,'arm',self.ros_arm_callback)
+        self.add_ros_subscriber(Float64,'takeoff',self.ros_takeoff_callback)
         self.add_ros_subscriber(String,'set_mode',self.ros_mode_callback)
 
     def add_ros_publisher(self,ros_type,topic):
@@ -81,7 +82,7 @@ class Macaw(Node):
         if mav_msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
             ros_msg.data = True
         else:
-            ros_msg.data = False 
+            ros_msg.data = False
         self.ros_publishers['is_armed'].publish(ros_msg)
 
     def mav_gps_callback(self,mav_msg):
@@ -95,10 +96,20 @@ class Macaw(Node):
         self.ros_publishers['altitude_asl'].publish(ros_msg)
 
     def ros_arm_callback(self,ros_msg):
+        self.get_logger().info('Arming')
         self.mav.mav.command_long_send(self.sysid,
                                        1,
                                        mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
                                        0,True,0,0,0,0,0,0)
+
+    def ros_takeoff_callback(self,ros_msg):
+        takeoff_alt = ros_msg.data
+        self.get_logger().info(f'Take off to altitude {takeoff_alt}')
+        self.mav.mav.command_long_send(self.sysid,
+                                       1,
+                                       mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                                       0,0,0,0,0,0,0,
+                                       takeoff_alt)
 
     def ros_mode_callback(self,ros_msg):
         new_mode_name = ros_msg.data
