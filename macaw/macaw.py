@@ -1,9 +1,10 @@
 import rclpy
 from rclpy.node import Node
-from pymavlink import mavutil
+from rclpy.parameter import Parameter
 from std_msgs.msg import Empty,Bool,UInt8,Float64,String
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Twist
+from pymavlink import mavutil
 
 class Macaw(Node):
     """
@@ -34,6 +35,7 @@ class Macaw(Node):
         self.mav_subscribers = {}
         self.add_mav_subscriber('HEARTBEAT', self.mav_heartbeat_callback)
         self.add_mav_subscriber('STATUSTEXT', self.mav_text_callback)
+        self.add_mav_subscriber('PARAM_VALUE', self.mav_param_callback)
         self.add_mav_subscriber('GPS_RAW_INT', self.mav_gps_callback, interval=1e6)
         self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
@@ -104,6 +106,17 @@ class Macaw(Node):
         ros_msg = Float64()
         ros_msg.data = mav_msg.alt/1e3
         self.ros_publishers['altitude_asl'].publish(ros_msg)
+
+    def mav_param_callback(self,mav_msg):
+        param_name = f'macaw/sysid{self.sysid}/{mav_msg.param_id}'
+        param_value = mav_msg.param_value
+        self.get_logger().info(f'Setting {param_name} to {param_value}')
+        try:
+            _ = self.get_parameter(param_name)
+        except:
+            self.declare_parameter(param_name)
+        ros_param = Parameter(param_name,Parameter.Type.DOUBLE,param_value)
+        self.set_parameters([ros_param])
 
     def ros_arm_callback(self,ros_msg):
         self.get_logger().info('Arming')
