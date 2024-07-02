@@ -3,7 +3,7 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from std_msgs.msg import Empty,Bool,UInt8,Float64,String
 from sensor_msgs.msg import NavSatFix
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Point, Vector3
 from pymavlink import mavutil
 
 class Macaw(Node):
@@ -26,6 +26,8 @@ class Macaw(Node):
         self.add_ros_publisher(Bool,'is_armed')
         self.add_ros_publisher(NavSatFix,'gps')
         self.add_ros_publisher(Float64,'altitude_asl')
+        self.add_ros_publisher(Point,'local_position')
+        self.add_ros_publisher(Vector3,'local_velocity')
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str','tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
@@ -37,6 +39,7 @@ class Macaw(Node):
         self.add_mav_subscriber('STATUSTEXT', self.mav_text_callback)
         self.add_mav_subscriber('PARAM_VALUE', self.mav_param_callback)
         self.add_mav_subscriber('GPS_RAW_INT', self.mav_gps_callback, interval=1e6)
+        self.add_mav_subscriber('LOCAL_POSITION_NED', self.mav_local_pos_callback, interval=1e6)
         self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
@@ -117,6 +120,18 @@ class Macaw(Node):
             self.declare_parameter(param_name)
         ros_param = Parameter(param_name,Parameter.Type.DOUBLE,param_value)
         self.set_parameters([ros_param])
+
+    def mav_local_pos_callback(self,mav_msg):
+        ros_msg = Point()
+        ros_msg.x = mav_msg.x
+        ros_msg.y = mav_msg.y
+        ros_msg.z = mav_msg.z
+        self.ros_publishers['local_position'].publish(ros_msg)
+        ros_msg = Vector3()
+        ros_msg.x = mav_msg.vx
+        ros_msg.y = mav_msg.vy
+        ros_msg.z = mav_msg.vz
+        self.ros_publishers['local_velocity'].publish(ros_msg)
 
     def ros_arm_callback(self,ros_msg):
         self.get_logger().info('Arming')
