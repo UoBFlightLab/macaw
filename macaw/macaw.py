@@ -3,8 +3,9 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from std_msgs.msg import Empty,Bool,UInt8,Float64,String
 from sensor_msgs.msg import NavSatFix
-from geometry_msgs.msg import Twist, Point, Vector3
+from geometry_msgs.msg import Twist, Point, Vector3, Quaternion
 from pymavlink import mavutil
+from transforms3d.euler import euler2quat
 
 class Macaw(Node):
     """
@@ -28,6 +29,8 @@ class Macaw(Node):
         self.add_ros_publisher(Float64,'altitude_asl')
         self.add_ros_publisher(Point,'local_position')
         self.add_ros_publisher(Vector3,'local_velocity')
+        self.add_ros_publisher(Quaternion,'attitude')
+        self.add_ros_publisher(Vector3,'angular_velocity')
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str','tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
@@ -40,6 +43,7 @@ class Macaw(Node):
         self.add_mav_subscriber('PARAM_VALUE', self.mav_param_callback)
         self.add_mav_subscriber('GPS_RAW_INT', self.mav_gps_callback, interval=1e6)
         self.add_mav_subscriber('LOCAL_POSITION_NED', self.mav_local_pos_callback, interval=1e6)
+        self.add_mav_subscriber('ATTITUDE', self.mav_attitude_callback, interval=1e6)
         self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
@@ -132,6 +136,22 @@ class Macaw(Node):
         ros_msg.y = mav_msg.vy
         ros_msg.z = mav_msg.vz
         self.ros_publishers['local_velocity'].publish(ros_msg)
+
+    def mav_attitude_callback(self,mav_msg):
+        """The attitude in the aeronautical frame
+        (right-handed, Z-down, Y-right, X-front, ZYX, intrinsic)."""
+        q = euler2quat(mav_msg.roll,mav_msg.pitch,mav_msg.yaw,'rzyx')
+        ros_msg = Quaternion()
+        ros_msg.w = q[0]
+        ros_msg.x = q[1]
+        ros_msg.y = q[2]
+        ros_msg.z = q[3]
+        self.ros_publishers['attitude'].publish(ros_msg)
+        ros_msg = Vector3()
+        ros_msg.x = mav_msg.rollspeed
+        ros_msg.y = mav_msg.pitchspeed
+        ros_msg.z = mav_msg.yawspeed
+        self.ros_publishers['angular_velocity'].publish(ros_msg)
 
     def ros_arm_callback(self,ros_msg):
         self.get_logger().info('Arming')
