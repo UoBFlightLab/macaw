@@ -4,7 +4,8 @@ from rclpy.parameter import Parameter
 from rclpy.exceptions import ParameterNotDeclaredException
 from std_msgs.msg import Empty, Bool, UInt8, Float64, String
 from sensor_msgs.msg import NavSatFix
-from geometry_msgs.msg import Twist, Point, Vector3, Quaternion
+from geometry_msgs.msg import Twist, Point, Vector3, Quaternion, TransformStamped
+from tf2_ros import TransformBroadcaster
 from pymavlink import mavutil
 from transforms3d.euler import euler2quat
 
@@ -32,6 +33,7 @@ class Macaw(Node):
         self.add_ros_publisher(Vector3, 'local_velocity')
         self.add_ros_publisher(Quaternion, 'attitude')
         self.add_ros_publisher(Vector3, 'angular_velocity')
+        self.tf_broadcaster = TransformBroadcaster(self)
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str', 'tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
@@ -39,6 +41,7 @@ class Macaw(Node):
         self.mav = mavutil.mavlink_connection(connect_str.value)
         # set up inbound MAVlink subscribers
         self.mav_subscribers = {}
+        self.last_mav_msgs = {}
         self.add_mav_subscriber('HEARTBEAT', self.mav_heartbeat_callback)
         self.add_mav_subscriber('STATUSTEXT', self.mav_text_callback)
         self.add_mav_subscriber('PARAM_VALUE', self.mav_param_callback)
@@ -91,6 +94,7 @@ class Macaw(Node):
             mav_msg_sender = mav_msg.get_srcSystem()
             if mav_msg_type in self.mav_subscribers:
                 self.get_logger().info(f'Got {mav_msg_type} from {mav_msg_sender}')
+                self.last_mav_msgs[mav_msg_type] = mav_msg
                 if mav_msg_sender == self.sysid:
                     self.mav_subscribers[mav_msg_type](mav_msg)
             else:
@@ -145,11 +149,12 @@ class Macaw(Node):
         ros_msg.y = mav_msg.vy
         ros_msg.z = mav_msg.vz
         self.ros_publishers['local_velocity'].publish(ros_msg)
+        self.mav_tf_callback()
 
     def mav_attitude_callback(self, mav_msg):
         """The attitude in the aeronautical frame
         (right-handed, Z-down, Y-right, X-front, ZYX, intrinsic)."""
-        q = euler2quat(mav_msg.roll, mav_msg.pitch, mav_msg.yaw, 'rzyx')
+        q = euler2quat(mav_msg.yaw, mav_msg.pitch, mav_msg.roll, 'rzyx')
         ros_msg = Quaternion()
         ros_msg.w = q[0]
         ros_msg.x = q[1]
@@ -161,6 +166,30 @@ class Macaw(Node):
         ros_msg.y = mav_msg.pitchspeed
         ros_msg.z = mav_msg.yawspeed
         self.ros_publishers['angular_velocity'].publish(ros_msg)
+        self.mav_tf_callback()
+
+    def mav_tf_callback(self):
+        if 'ATTITUDE' not in self.last_mav_msgs:
+            return
+        if 'LOCAL_POSITION_NED' not in self.last_mav_msgs:
+            return
+        att = self.last_mav_msgs['ATTITUDE']
+        pos = self.last_mav_msgs['LOCAL_POSITION_NED']
+        if att.time_boot_ms == pos.time_boot_ms:
+            t = TransformStamped()
+            t.header.stamp = self.get_clock().now().to_msg()
+            t.header.frame_id = f'home{self.sysid}'
+            t.child_frame_id = f'macaw{self.sysid}'
+            t.transform.translation.x = pos.x
+            t.transform.translation.y = pos.y
+            t.transform.translation.z = pos.z
+            q = euler2quat(att.yaw, att.pitch, att.roll, 'rzyx')
+            t.transform.rotation.x = q[1]
+            t.transform.rotation.y = q[2]
+            t.transform.rotation.z = q[3]
+            t.transform.rotation.w = q[0]
+            self.get_logger().info('Sending TF')
+            self.tf_broadcaster.sendTransform(t)
 
     def ros_arm_callback(self, ros_msg):
         self.get_logger().info('Arming')
