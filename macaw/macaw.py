@@ -21,7 +21,7 @@ class Macaw(Node):
         super().__init__(self.node_name)
         # identify target MAVlink system ID
         self.declare_parameter('mavlink_sysid', 1)
-        self.sysid = self.get_parameter('mavlink_sysid').value
+        self.sysid = int(self.get_parameter('mavlink_sysid').value)
         self.get_logger().info(f'Will talk to SYSID {self.sysid}')
         # set up outbound ROS publishers
         self.ros_publishers = {}
