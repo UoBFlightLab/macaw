@@ -27,4 +27,4 @@ EXPOSE 5900
 
 ENTRYPOINT [ "/ros_ws/src/macaw/macaw_entrypoint.sh" ]
 
-CMD [ "ros2", "launch", "macaw", "udplistener1.launch.xml" ]
+CMD [ "ros2", "launch", "macaw", "macaw.launch.xml" ]
