@@ -1,0 +1,6 @@
+<launch>
+<node pkg="macaw" name="macaw" exec="macaw" >
+  <param name="mavlink_sysid" value="1" />
+  <param name="mavlink_connect_str" value="udpin:0.0.0.0:14000" />
+</node>
+</launch>
