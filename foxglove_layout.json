@@ -1,89 +1,140 @@
 {
   "configById": {
-    "3D!40jejke": {
+    "Gauge!21vlvpa": {
+      "path": "/macaw/sysid1/altitude_asl.data",
+      "minValue": 0,
+      "maxValue": 120,
+      "colorMap": "turbo",
+      "colorMode": "colormap",
+      "gradient": [
+        "#0000ff",
+        "#ff00ff"
+      ],
+      "reverse": true,
+      "foxglovePanelTitle": "Alt ASL (m)"
+    },
+    "Publish!1vi43kq": {
+      "buttonText": "GUIDED",
+      "buttonTooltip": "",
+      "advancedView": false,
+      "value": "{\n  \"data\": \"GUIDED\"\n}",
+      "topicName": "/macaw/sysid1/cmd_mode",
+      "datatype": "std_msgs/msg/String"
+    },
+    "Publish!1tslxaa": {
+      "buttonText": "RTL",
+      "buttonTooltip": "",
+      "advancedView": false,
+      "value": "{\n  \"data\": \"RTL\"\n}",
+      "topicName": "/macaw/sysid1/cmd_mode",
+      "datatype": "std_msgs/msg/String"
+    },
+    "Publish!1uvxyxl": {
+      "buttonText": "Arm",
+      "buttonTooltip": "",
+      "advancedView": false,
+      "value": "{}",
+      "topicName": "/macaw/sysid1/arm",
+      "datatype": "std_msgs/msg/Empty"
+    },
+    "Publish!17l00vx": {
+      "buttonText": "Take-off",
+      "buttonTooltip": "",
+      "advancedView": false,
+      "value": "{\n  \"data\": 10\n}",
+      "topicName": "/macaw/sysid1/takeoff",
+      "datatype": "std_msgs/msg/Float64"
+    },
+    "Publish!3gx72lq": {
+      "buttonText": "Land",
+      "buttonTooltip": "",
+      "advancedView": false,
+      "value": "{}",
+      "topicName": "/macaw/sysid1/land",
+      "datatype": "std_msgs/msg/Empty"
+    },
+    "Indicator!t4i0na": {
+      "path": "/macaw/sysid1/is_armed.data",
+      "style": "bulb",
+      "fallbackColor": "#ff0202",
+      "fallbackLabel": "Disarmed",
+      "rules": [
+        {
+          "operator": "=",
+          "rawValue": "true",
+          "color": "#68e24a",
+          "label": "Armed"
+        }
+      ]
+    },
+    "map!v4cwwl": {
+      "center": {
+        "lat": 51.50167703538552,
+        "lon": -2.5512957572937016
+      },
+      "customTileUrl": "",
+      "disabledTopics": [],
+      "followTopic": "/macaw/sysid1/gps",
+      "layer": "map",
+      "topicColors": {},
+      "maxNativeZoom": 18,
+      "zoomLevel": 15
+    },
+    "3D!2gu8gho": {
       "cameraState": {
-        "distance": 2.5,
         "perspective": true,
-        "phi": 60.34220532319342,
-        "target": [0, 0, 0],
-        "targetOffset": [0, 0, 0],
-        "targetOrientation": [0, 0, 0, 1],
-        "thetaOffset": 44.9999999999999,
+        "distance": 114.40036651354636,
+        "phi": 74.81668320883509,
+        "thetaOffset": 29.156478990861416,
+        "targetOffset": [
+          -9.07488529530226,
+          2.4941460040987797,
+          -1.3090137165170751e-16
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
         "fovy": 45,
         "near": 0.5,
         "far": 5000
       },
       "followMode": "follow-pose",
-      "scene": {},
-      "transforms": {
-        "frame:base_link": {
-          "visible": false
-        },
-        "frame:body_link": {
-          "visible": false
-        },
-        "frame:cover_link": {
-          "visible": false
-        },
-        "frame:imu_link": {
-          "visible": false
-        },
-        "frame:camera_link": {
-          "visible": false
-        },
-        "frame:fl_range": {
-          "visible": false
-        },
-        "frame:fr_range": {
-          "visible": false
-        },
-        "frame:rl_range": {
-          "visible": false
-        },
-        "frame:rr_range": {
-          "visible": false
-        },
-        "frame:fl_wheel_link": {
-          "visible": false
-        },
-        "frame:fr_wheel_link": {
-          "visible": false
-        },
-        "frame:rl_wheel_link": {
-          "visible": false
-        },
-        "frame:rr_wheel_link": {
-          "visible": false
-        },
-        "frame:slamtec_rplidar_a2_link": {
-          "visible": false
-        },
-        "frame:laser": {
-          "visible": false
-        },
-        "frame:orbbec_astra_link": {
-          "visible": false
-        },
-        "frame:depth": {
-          "visible": false
-        }
+      "scene": {
+        "backgroundColor": "#523c3c",
+        "meshUpAxis": "y_up"
       },
+      "transforms": {},
       "topics": {},
       "layers": {
-        "e827a6dc-875b-448a-8475-5497577c2e1b": {
+        "eb2b8c99-2ea3-4129-8b67-7fab47c93c12": {
           "visible": true,
           "frameLocked": true,
-          "label": "URDF",
-          "instanceId": "e827a6dc-875b-448a-8475-5497577c2e1b",
-          "layerId": "foxglove.Urdf",
-          "sourceType": "url",
-          "url": "http://localhost:8080/rosbot_xl.urdf",
-          "filePath": "",
-          "parameter": "",
-          "topic": "",
-          "framePrefix": "",
-          "displayMode": "auto",
-          "fallbackColor": "#ffffff",
+          "label": "Grid",
+          "instanceId": "eb2b8c99-2ea3-4129-8b67-7fab47c93c12",
+          "layerId": "foxglove.Grid",
+          "frameId": "home1",
+          "size": 100,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
           "order": 1
         }
       },
@@ -95,22 +146,36 @@
         "poseEstimateXDeviation": 0.5,
         "poseEstimateYDeviation": 0.5,
         "poseEstimateThetaDeviation": 0.26179939
-      }
-    },
-    "ImageViewPanel!4091812": {
-      "cameraTopic": "",
-      "enabledMarkerTopics": [],
-      "mode": "fit",
-      "pan": {
-        "x": 0,
-        "y": 0
       },
-      "rotation": 0,
-      "synchronize": false,
-      "transformMarkers": false,
-      "zoom": 1
+      "imageMode": {}
     },
-    "Teleop!jo9z4f": {
+    "RosOut!b0toow": {
+      "searchTerms": [],
+      "minLogLevel": 1
+    },
+    "Teleop!pm7tci": {
+      "topic": "/macaw/sysid1/cmd_vel",
+      "publishRate": 1,
+      "upButton": {
+        "field": "linear-z",
+        "value": -1
+      },
+      "downButton": {
+        "field": "linear-z",
+        "value": 1
+      },
+      "leftButton": {
+        "field": "angular-z",
+        "value": -0.2
+      },
+      "rightButton": {
+        "field": "angular-z",
+        "value": 0.2
+      },
+      "foxglovePanelTitle": "Vertical/Yaw"
+    },
+    "Teleop!1dmnmxz": {
+      "topic": "/macaw/sysid1/cmd_vel",
       "publishRate": 1,
       "upButton": {
         "field": "linear-x",
@@ -121,17 +186,14 @@
         "value": -1
       },
       "leftButton": {
-        "field": "angular-z",
-        "value": 1
+        "field": "linear-y",
+        "value": -1
       },
       "rightButton": {
-        "field": "angular-z",
-        "value": -1
-      }
-    },
-    "RosOut!b0toow": {
-      "searchTerms": [],
-      "minLogLevel": 1
+        "field": "linear-y",
+        "value": 1
+      },
+      "foxglovePanelTitle": "Forward/Sideslip"
     }
   },
   "globalVariables": {},
@@ -140,18 +202,53 @@
     "speed": 1
   },
   "layout": {
+    "direction": "row",
     "first": {
-      "first": "3D!40jejke",
-      "second": {
-        "first": "ImageViewPanel!4091812",
-        "second": "RosOut!b0toow",
+      "first": {
+        "first": {
+          "first": "Gauge!21vlvpa",
+          "second": {
+            "first": "Publish!1vi43kq",
+            "second": "Publish!1tslxaa",
+            "direction": "row"
+          },
+          "direction": "column",
+          "splitPercentage": 66.5841584158416
+        },
+        "second": {
+          "first": "Publish!1uvxyxl",
+          "second": {
+            "first": "Publish!17l00vx",
+            "second": "Publish!3gx72lq",
+            "direction": "row"
+          },
+          "direction": "row",
+          "splitPercentage": 33.70760050251257
+        },
+        "direction": "column",
+        "splitPercentage": 73.62804878048779
+      },
+      "second": "Indicator!t4i0na",
+      "direction": "column",
+      "splitPercentage": 74.71526195899773
+    },
+    "second": {
+      "direction": "row",
+      "first": {
+        "first": "map!v4cwwl",
+        "second": "3D!2gu8gho",
         "direction": "column"
       },
-      "direction": "row",
-      "splitPercentage": 72.58448357924799
+      "second": {
+        "first": "RosOut!b0toow",
+        "second": {
+          "first": "Teleop!pm7tci",
+          "second": "Teleop!1dmnmxz",
+          "direction": "row"
+        },
+        "direction": "column"
+      }
     },
-    "second": "Teleop!jo9z4f",
-    "direction": "column",
-    "splitPercentage": 79.54319761668322
+    "splitPercentage": 24.598183088749124
   }
 }

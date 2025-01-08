@@ -38,7 +38,9 @@ class Macaw(Node):
         self.declare_parameter('mavlink_connect_str', 'tcp:127.0.0.1:5760')
         connect_str = self.get_parameter('mavlink_connect_str')
         self.get_logger().info(f'Connecting to {connect_str.value}')
-        self.mav = mavutil.mavlink_connection(connect_str.value)
+        self.mav = mavutil.mavlink_connection(connect_str.value, 
+                                              source_system=253,
+                                              source_component=mavutil.mavlink.MAV_COMP_ID_ONBOARD_COMPUTER)
         # set up inbound MAVlink subscribers
         self.mav_subscribers = {}
         self.last_mav_msgs = {}
@@ -48,6 +50,7 @@ class Macaw(Node):
         self.add_mav_subscriber('GPS_RAW_INT', self.mav_gps_callback, interval=1e6)
         self.add_mav_subscriber('LOCAL_POSITION_NED', self.mav_local_pos_callback, interval=1e6)
         self.add_mav_subscriber('ATTITUDE', self.mav_attitude_callback, interval=1e6)
+        self.add_mav_subscriber('COMMAND_ACK', self.mav_cmd_ack_callback)
         self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
@@ -85,6 +88,7 @@ class Macaw(Node):
                                            mav_type_num,
                                            interval,
                                            0, 0, 0, 0, 0, 0)
+            self.get_logger().info(f'Requesting {mav_type} (#{mav_type_num}) at interval {interval}')
 
     def timer_callback(self):
         # process inbound MAVlink messages
@@ -115,6 +119,10 @@ class Macaw(Node):
         msg_sender = mav_msg.get_srcSystem()
         self.get_logger().info(f'STATUSTEXT from {msg_sender}: {mav_msg.text}')
 
+    def mav_cmd_ack_callback(self, mav_msg):
+        msg_sender = mav_msg.get_srcSystem()
+        self.get_logger().info(f'COMMAND_ACK from {msg_sender}: Command was {mav_msg.command} with result {mav_msg.result}.')    
+
     def mav_gps_callback(self, mav_msg):
         ros_msg = NavSatFix()
         ros_msg.latitude = mav_msg.lat/1e7
@@ -132,7 +140,7 @@ class Macaw(Node):
         try:
             _ = self.get_parameter(param_name)
         except ParameterNotDeclaredException:
-            self.declare_parameter(param_name)
+            self.declare_parameter(param_name, 0.0)
         ros_param = Parameter(param_name,
                               Parameter.Type.DOUBLE,
                               param_value)
