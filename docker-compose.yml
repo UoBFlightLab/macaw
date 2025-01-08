@@ -1,0 +1,15 @@
+services:
+  copter:
+    entrypoint: /ardupilot/build/sitl/bin/arducopter -w --model=quad --home=51.501592,-2.551791,0,180
+      --defaults /ardupilot/Tools/autotest/default_params/copter.parm --sysid=1
+    image: murphy360/ardupilot-sitl-copter
+    ports:
+      - 5762:5762
+  macaw:
+    build: .
+    depends_on:
+    - copter
+    environment:
+      SITL_HOSTNAME: copter
+    command: ros2 launch macaw macaw.launch.xml
+version: '3.8'
