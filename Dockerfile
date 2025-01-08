@@ -1,4 +1,4 @@
-FROM ros:jazzy-ros-base
+FROM ros:humble-ros-base
 
 WORKDIR /ros_ws/src
 
@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get install -y python3-pip
 
 # ought to be able to specify Python dependencies through rosdep, but can't get it to work
-RUN python3 -m pip install --break-system-packages pymavlink transforms3d
+RUN python3 -m pip install pymavlink transforms3d
 
 COPY . /ros_ws/src/macaw
 
