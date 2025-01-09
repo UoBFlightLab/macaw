@@ -31,6 +31,7 @@ class Macaw(Node):
         self.add_ros_publisher(Bool, 'is_armed')
         self.add_ros_publisher(NavSatFix, 'gps')
         self.add_ros_publisher(Float64, 'altitude_asl')
+        self.add_ros_publisher(Float64, 'altitude_rel_home')
         self.add_ros_publisher(Point, 'local_position')
         self.add_ros_publisher(Vector3, 'local_velocity')
         self.add_ros_publisher(Quaternion, 'attitude')
@@ -114,7 +115,6 @@ class Macaw(Node):
         # status
         ros_msg = UInt8()
         ros_msg.data = mav_msg.system_status
-        self.get_logger().info(f'Sending {ros_msg} to status')
         self.ros_publishers['status'].publish(ros_msg)
         # armed status
         ros_msg = Bool()
@@ -122,18 +122,15 @@ class Macaw(Node):
             ros_msg.data = True
         else:
             ros_msg.data = False
-        self.get_logger().info(f'Sending {ros_msg} to is_armed')
         self.ros_publishers['is_armed'].publish(ros_msg)
         # current mode
         ros_msg = UInt8()
         ros_msg.data = mav_msg.custom_mode
-        self.get_logger().info(f'Sending {ros_msg} to mode')
         self.ros_publishers['mode'].publish(ros_msg)
         # time stamp
         self.num_heartbeats = self.num_heartbeats + 1
         ros_msg = UInt64()
         ros_msg.data = self.num_heartbeats
-        self.get_logger().info(f'Sending {ros_msg} to heartbeat_count')
         self.ros_publishers['heartbeat_count'].publish(ros_msg)        
 
     def mav_text_callback(self, mav_msg):
@@ -178,6 +175,9 @@ class Macaw(Node):
         ros_msg.y = mav_msg.vy
         ros_msg.z = mav_msg.vz
         self.ros_publishers['local_velocity'].publish(ros_msg)
+        ros_msg = Float64()
+        ros_msg.data = -mav_msg.z
+        self.ros_publishers['altitude_rel_home'].publish(ros_msg)
         self.mav_tf_callback()
 
     def mav_attitude_callback(self, mav_msg):

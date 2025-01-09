@@ -2,7 +2,7 @@
   "configById": {
     "Gauge!21vlvpa": {
       "path": "/macaw/sysid1/altitude_asl.data",
-      "minValue": 0,
+      "minValue": -5,
       "maxValue": 120,
       "colorMap": "turbo",
       "colorMode": "colormap",
@@ -12,6 +12,20 @@
       ],
       "reverse": true,
       "foxglovePanelTitle": "Alt ASL (m)"
+    },
+    "RawMessages!14j1fys": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/macaw/sysid1/altitude_asl.data"
+    },
+    "RawMessages!y436xg": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/macaw/sysid1/altitude_rel_home.data"
     },
     "Publish!1vi43kq": {
       "buttonText": "GUIDED",
@@ -28,6 +42,13 @@
       "value": "{\n  \"data\": \"RTL\"\n}",
       "topicName": "/macaw/sysid1/cmd_mode",
       "datatype": "std_msgs/msg/String"
+    },
+    "RawMessages!755a26": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/macaw/sysid1/mode.data"
     },
     "Publish!1uvxyxl": {
       "buttonText": "Arm",
@@ -67,10 +88,17 @@
         }
       ]
     },
+    "RawMessages!4jxgrge": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/macaw/sysid1/heartbeat_count.data"
+    },
     "map!v4cwwl": {
       "center": {
-        "lat": 51.50167703538552,
-        "lon": -2.5512957572937016
+        "lat": 51.50159271783461,
+        "lon": -2.5517906248569493
       },
       "customTileUrl": "",
       "disabledTopics": [],
@@ -78,23 +106,22 @@
       "layer": "map",
       "topicColors": {},
       "maxNativeZoom": 18,
-      "zoomLevel": 15
+      "zoomLevel": 19
     },
     "3D!2gu8gho": {
       "cameraState": {
+        "distance": 65.07093902935257,
         "perspective": true,
-        "distance": 114.40036651354636,
-        "phi": 74.81668320883509,
-        "thetaOffset": 29.156478990861416,
-        "targetOffset": [
-          -9.07488529530226,
-          2.4941460040987797,
-          -1.3090137165170751e-16
-        ],
+        "phi": 132.90959274428815,
         "target": [
           0,
           0,
           0
+        ],
+        "targetOffset": [
+          13.728338593553048,
+          27.588542894718845,
+          -1.3629196878063761e-16
         ],
         "targetOrientation": [
           0,
@@ -102,6 +129,7 @@
           0,
           1
         ],
+        "thetaOffset": 145.34229806176702,
         "fovy": 45,
         "near": 0.5,
         "far": 5000
@@ -179,21 +207,34 @@
       "publishRate": 1,
       "upButton": {
         "field": "linear-x",
-        "value": 1
+        "value": 2
       },
       "downButton": {
         "field": "linear-x",
-        "value": -1
+        "value": -2
       },
       "leftButton": {
         "field": "linear-y",
-        "value": -1
+        "value": -2
       },
       "rightButton": {
         "field": "linear-y",
-        "value": 1
+        "value": 2
       },
-      "foxglovePanelTitle": "Forward/Sideslip"
+      "foxglovePanelTitle": "North/East"
+    },
+    "Gauge!zqxgzr": {
+      "path": "/macaw/sysid1/altitude_rel_home.data",
+      "minValue": -5,
+      "maxValue": 120,
+      "colorMap": "turbo",
+      "colorMode": "colormap",
+      "gradient": [
+        "#0000ff",
+        "#ff00ff"
+      ],
+      "reverse": true,
+      "foxglovePanelTitle": "Alt rel home (m)"
     }
   },
   "globalVariables": {},
@@ -206,11 +247,29 @@
     "first": {
       "first": {
         "first": {
-          "first": "Gauge!21vlvpa",
+          "first": {
+            "first": {
+              "first": "Gauge!21vlvpa",
+              "second": "Gauge!zqxgzr",
+              "direction": "row"
+            },
+            "second": {
+              "first": "RawMessages!14j1fys",
+              "second": "RawMessages!y436xg",
+              "direction": "row"
+            },
+            "direction": "column",
+            "splitPercentage": 62.49971137638827
+          },
           "second": {
             "first": "Publish!1vi43kq",
-            "second": "Publish!1tslxaa",
-            "direction": "row"
+            "second": {
+              "first": "Publish!1tslxaa",
+              "second": "RawMessages!755a26",
+              "direction": "row"
+            },
+            "direction": "row",
+            "splitPercentage": 34.01958919741347
           },
           "direction": "column",
           "splitPercentage": 66.5841584158416
@@ -228,7 +287,12 @@
         "direction": "column",
         "splitPercentage": 73.62804878048779
       },
-      "second": "Indicator!t4i0na",
+      "second": {
+        "first": "Indicator!t4i0na",
+        "second": "RawMessages!4jxgrge",
+        "direction": "row",
+        "splitPercentage": 66.76344379992393
+      },
       "direction": "column",
       "splitPercentage": 74.71526195899773
     },

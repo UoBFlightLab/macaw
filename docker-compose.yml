@@ -20,7 +20,7 @@ services:
     ports:
       - 8080:8080
     volumes:
-      - ./foxglove_layout.json:/foxglove/default-layout.json
+      - ./foxglove-layout.json:/foxglove/default-layout.json
     environment:
       - DS_TYPE=rosbridge-websocket
       - DS_PORT=9090
