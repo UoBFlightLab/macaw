@@ -5,4 +5,5 @@
   <param name="mavlink_sysid" value="$(var sysid)" />
   <param name="mavlink_connect_str" value="$(var connect_str)" />
 </node>
+<node pkg="tf2_ros" exec="static_transform_publisher" name="ned_to_enu_1" args="0 0 0 0.7071 0.7071 0 0 home1_ned home1_enu" />
 </launch>

@@ -209,8 +209,8 @@ class Macaw(Node):
         if att.time_boot_ms == pos.time_boot_ms:
             t = TransformStamped()
             t.header.stamp = self.get_clock().now().to_msg()
-            t.header.frame_id = f'home{self.sysid}'
-            t.child_frame_id = f'macaw{self.sysid}'
+            t.header.frame_id = f'home{self.sysid}_ned'
+            t.child_frame_id = f'macaw{self.sysid}_ned'
             t.transform.translation.x = pos.x
             t.transform.translation.y = pos.y
             t.transform.translation.z = pos.z

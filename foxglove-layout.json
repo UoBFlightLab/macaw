@@ -136,8 +136,8 @@
     },
     "map!v4cwwl": {
       "center": {
-        "lat": 51.50159271783461,
-        "lon": -2.551271617412567
+        "lat": 51.50159104817857,
+        "lon": -2.550756633281708
       },
       "customTileUrl": "",
       "disabledTopics": [],
@@ -150,13 +150,13 @@
     "3D!2gu8gho": {
       "cameraState": {
         "perspective": true,
-        "distance": 65.07093902935097,
-        "phi": 132.90959274428815,
-        "thetaOffset": 145.34229806176702,
+        "distance": 126.75940887919327,
+        "phi": 86.25922599612363,
+        "thetaOffset": -138.08068482332305,
         "targetOffset": [
-          -3.5229107487001383,
-          20.789456858672175,
-          1.6733923905830263e-16
+          -1.4912114538270267,
+          -3.5719041963447005,
+          8.921134552116307e-16
         ],
         "target": [
           0,
@@ -187,7 +187,7 @@
           "label": "Grid",
           "instanceId": "eb2b8c99-2ea3-4129-8b67-7fab47c93c12",
           "layerId": "foxglove.Grid",
-          "frameId": "home1",
+          "frameId": "home1_enu",
           "size": 100,
           "divisions": 10,
           "lineWidth": 1,
@@ -214,7 +214,8 @@
         "poseEstimateYDeviation": 0.5,
         "poseEstimateThetaDeviation": 0.26179939
       },
-      "imageMode": {}
+      "imageMode": {},
+      "followTf": "home1_enu"
     },
     "RosOut!b0toow": {
       "searchTerms": [],
