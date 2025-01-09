@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.exceptions import ParameterNotDeclaredException
-from std_msgs.msg import Empty, Bool, UInt8, Float64, String
+from std_msgs.msg import Empty, Bool, UInt8, Float64, String, UInt64
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Twist, Point, Vector3, Quaternion, TransformStamped
 from tf2_ros import TransformBroadcaster
@@ -26,6 +26,8 @@ class Macaw(Node):
         # set up outbound ROS publishers
         self.ros_publishers = {}
         self.add_ros_publisher(UInt8, 'status')
+        self.add_ros_publisher(UInt8, 'mode')
+        self.add_ros_publisher(UInt64, 'heartbeat_count')
         self.add_ros_publisher(Bool, 'is_armed')
         self.add_ros_publisher(NavSatFix, 'gps')
         self.add_ros_publisher(Float64, 'altitude_asl')
@@ -41,6 +43,10 @@ class Macaw(Node):
         self.mav = mavutil.mavlink_connection(connect_str.value, 
                                               source_system=253,
                                               source_component=mavutil.mavlink.MAV_COMP_ID_ONBOARD_COMPUTER)
+        self.get_logger().info(f'Waiting for heartbeat')
+        self.mav.wait_heartbeat()
+        self.num_heartbeats = 1
+        self.get_logger().info(f'Got heartbeat from ID {self.mav.target_system} component {self.mav.target_component}')
         # set up inbound MAVlink subscribers
         self.mav_subscribers = {}
         self.last_mav_msgs = {}
@@ -105,15 +111,30 @@ class Macaw(Node):
                 self.get_logger().info(f'Ignoring {mav_msg_type} from {mav_msg_sender}')
 
     def mav_heartbeat_callback(self, mav_msg):
+        # status
         ros_msg = UInt8()
         ros_msg.data = mav_msg.system_status
+        self.get_logger().info(f'Sending {ros_msg} to status')
         self.ros_publishers['status'].publish(ros_msg)
+        # armed status
         ros_msg = Bool()
         if mav_msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
             ros_msg.data = True
         else:
             ros_msg.data = False
+        self.get_logger().info(f'Sending {ros_msg} to is_armed')
         self.ros_publishers['is_armed'].publish(ros_msg)
+        # current mode
+        ros_msg = UInt8()
+        ros_msg.data = mav_msg.custom_mode
+        self.get_logger().info(f'Sending {ros_msg} to mode')
+        self.ros_publishers['mode'].publish(ros_msg)
+        # time stamp
+        self.num_heartbeats = self.num_heartbeats + 1
+        ros_msg = UInt64()
+        ros_msg.data = self.num_heartbeats
+        self.get_logger().info(f'Sending {ros_msg} to heartbeat_count')
+        self.ros_publishers['heartbeat_count'].publish(ros_msg)        
 
     def mav_text_callback(self, mav_msg):
         msg_sender = mav_msg.get_srcSystem()
