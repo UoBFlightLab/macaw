@@ -10,7 +10,20 @@
         "#0000ff",
         "#ff00ff"
       ],
-      "reverse": true,
+      "reverse": false,
+      "foxglovePanelTitle": "Alt ASL (m)"
+    },
+    "Gauge!zqxgzr": {
+      "path": "/macaw/sysid1/altitude_rel_home.data",
+      "minValue": -5,
+      "maxValue": 120,
+      "colorMap": "turbo",
+      "colorMode": "colormap",
+      "gradient": [
+        "#0000ff",
+        "#ff00ff"
+      ],
+      "reverse": false,
       "foxglovePanelTitle": "Alt ASL (m)"
     },
     "RawMessages!14j1fys": {
@@ -50,6 +63,20 @@
       "showFullMessageForDiff": false,
       "topicPath": "/macaw/sysid1/mode.data"
     },
+    "Indicator!t4i0na": {
+      "path": "/macaw/sysid1/is_armed.data",
+      "style": "bulb",
+      "fallbackColor": "#ff0202",
+      "fallbackLabel": "Disarmed",
+      "rules": [
+        {
+          "operator": "=",
+          "rawValue": "true",
+          "color": "#68e24a",
+          "label": "Armed"
+        }
+      ]
+    },
     "Publish!1uvxyxl": {
       "buttonText": "Arm",
       "buttonTooltip": "",
@@ -74,19 +101,31 @@
       "topicName": "/macaw/sysid1/land",
       "datatype": "std_msgs/msg/Empty"
     },
-    "Indicator!t4i0na": {
-      "path": "/macaw/sysid1/is_armed.data",
-      "style": "bulb",
-      "fallbackColor": "#ff0202",
-      "fallbackLabel": "Disarmed",
-      "rules": [
-        {
-          "operator": "=",
-          "rawValue": "true",
-          "color": "#68e24a",
-          "label": "Armed"
-        }
-      ]
+    "RawMessages!4798c8h": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/macaw/sysid1/battery_state.voltage"
+    },
+    "RawMessages!43zc3dx": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/macaw/sysid1/battery_state.current"
+    },
+    "Gauge!ckj0ox": {
+      "path": "/macaw/sysid1/battery_state.percentage",
+      "minValue": 0,
+      "maxValue": 1,
+      "colorMap": "red-yellow-green",
+      "colorMode": "colormap",
+      "gradient": [
+        "#0000ff",
+        "#ff00ff"
+      ],
+      "reverse": false
     },
     "RawMessages!4jxgrge": {
       "diffEnabled": false,
@@ -98,7 +137,7 @@
     "map!v4cwwl": {
       "center": {
         "lat": 51.50159271783461,
-        "lon": -2.5517906248569493
+        "lon": -2.551271617412567
       },
       "customTileUrl": "",
       "disabledTopics": [],
@@ -110,18 +149,19 @@
     },
     "3D!2gu8gho": {
       "cameraState": {
-        "distance": 65.07093902935257,
         "perspective": true,
+        "distance": 65.07093902935097,
         "phi": 132.90959274428815,
+        "thetaOffset": 145.34229806176702,
+        "targetOffset": [
+          -3.5229107487001383,
+          20.789456858672175,
+          1.6733923905830263e-16
+        ],
         "target": [
           0,
           0,
           0
-        ],
-        "targetOffset": [
-          13.728338593553048,
-          27.588542894718845,
-          -1.3629196878063761e-16
         ],
         "targetOrientation": [
           0,
@@ -129,7 +169,6 @@
           0,
           1
         ],
-        "thetaOffset": 145.34229806176702,
         "fovy": 45,
         "near": 0.5,
         "far": 5000
@@ -222,19 +261,6 @@
         "value": 2
       },
       "foxglovePanelTitle": "North/East"
-    },
-    "Gauge!zqxgzr": {
-      "path": "/macaw/sysid1/altitude_rel_home.data",
-      "minValue": -5,
-      "maxValue": 120,
-      "colorMap": "turbo",
-      "colorMode": "colormap",
-      "gradient": [
-        "#0000ff",
-        "#ff00ff"
-      ],
-      "reverse": true,
-      "foxglovePanelTitle": "Alt rel home (m)"
     }
   },
   "globalVariables": {},
@@ -259,20 +285,26 @@
               "direction": "row"
             },
             "direction": "column",
-            "splitPercentage": 62.49971137638827
+            "splitPercentage": 66.84210526315789
           },
           "second": {
             "first": "Publish!1vi43kq",
             "second": {
               "first": "Publish!1tslxaa",
-              "second": "RawMessages!755a26",
-              "direction": "row"
+              "second": {
+                "first": "RawMessages!755a26",
+                "second": "Indicator!t4i0na",
+                "direction": "row",
+                "splitPercentage": 27.940202162747457
+              },
+              "direction": "row",
+              "splitPercentage": 34.32712110337942
             },
             "direction": "row",
-            "splitPercentage": 34.01958919741347
+            "splitPercentage": 23.813712438189427
           },
           "direction": "column",
-          "splitPercentage": 66.5841584158416
+          "splitPercentage": 73.63083164300201
         },
         "second": {
           "first": "Publish!1uvxyxl",
@@ -285,13 +317,21 @@
           "splitPercentage": 33.70760050251257
         },
         "direction": "column",
-        "splitPercentage": 73.62804878048779
+        "splitPercentage": 75.15243902439025
       },
       "second": {
-        "first": "Indicator!t4i0na",
-        "second": "RawMessages!4jxgrge",
+        "first": {
+          "first": "RawMessages!4798c8h",
+          "second": "RawMessages!43zc3dx",
+          "direction": "column"
+        },
+        "second": {
+          "first": "Gauge!ckj0ox",
+          "second": "RawMessages!4jxgrge",
+          "direction": "row"
+        },
         "direction": "row",
-        "splitPercentage": 66.76344379992393
+        "splitPercentage": 33.5943443324458
       },
       "direction": "column",
       "splitPercentage": 74.71526195899773
@@ -310,8 +350,10 @@
           "second": "Teleop!1dmnmxz",
           "direction": "row"
         },
-        "direction": "column"
-      }
+        "direction": "column",
+        "splitPercentage": 70.84282460136674
+      },
+      "splitPercentage": 56.994699105401324
     },
     "splitPercentage": 24.598183088749124
   }

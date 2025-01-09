@@ -3,7 +3,7 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.exceptions import ParameterNotDeclaredException
 from std_msgs.msg import Empty, Bool, UInt8, Float64, String, UInt64
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, BatteryState
 from geometry_msgs.msg import Twist, Point, Vector3, Quaternion, TransformStamped
 from tf2_ros import TransformBroadcaster
 from pymavlink import mavutil
@@ -36,6 +36,7 @@ class Macaw(Node):
         self.add_ros_publisher(Vector3, 'local_velocity')
         self.add_ros_publisher(Quaternion, 'attitude')
         self.add_ros_publisher(Vector3, 'angular_velocity')
+        self.add_ros_publisher(BatteryState, 'battery_state')
         self.tf_broadcaster = TransformBroadcaster(self)
         # connect MAVlink
         self.declare_parameter('mavlink_connect_str', 'tcp:127.0.0.1:5760')
@@ -58,6 +59,7 @@ class Macaw(Node):
         self.add_mav_subscriber('LOCAL_POSITION_NED', self.mav_local_pos_callback, interval=1e6)
         self.add_mav_subscriber('ATTITUDE', self.mav_attitude_callback, interval=1e6)
         self.add_mav_subscriber('COMMAND_ACK', self.mav_cmd_ack_callback)
+        self.add_mav_subscriber('SYS_STATUS', self.mav_sys_status_callback, interval=1e6)
         self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
@@ -220,6 +222,13 @@ class Macaw(Node):
             self.get_logger().info('Sending TF')
             self.tf_broadcaster.sendTransform(t)
 
+    def mav_sys_status_callback(self, mav_msg):
+        ros_msg = BatteryState()
+        ros_msg.voltage = mav_msg.voltage_battery/1e3
+        ros_msg.current = mav_msg.current_battery/1e2
+        ros_msg.percentage = mav_msg.battery_remaining/100
+        self.ros_publishers['battery_state'].publish(ros_msg)
+        
     def ros_arm_callback(self, ros_msg):
         self.get_logger().info('Arming')
         self.mav.mav.command_long_send(self.sysid,
