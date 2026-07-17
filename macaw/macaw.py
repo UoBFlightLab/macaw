@@ -4,10 +4,12 @@ from rclpy.parameter import Parameter
 from rclpy.exceptions import ParameterNotDeclaredException
 from std_msgs.msg import Empty, Bool, UInt8, Float64, String, UInt64
 from sensor_msgs.msg import NavSatFix, BatteryState
-from geometry_msgs.msg import Twist, Point, Vector3, Quaternion, TransformStamped, Pose
+from geometry_msgs.msg import PoseStamped, Twist, Point, Vector3, Quaternion, TransformStamped, Pose
 from tf2_ros import TransformBroadcaster
 from pymavlink import mavutil
+import math
 from transforms3d.euler import euler2quat, quat2euler
+import threading
 
 class Macaw(Node):
     """
@@ -41,9 +43,12 @@ class Macaw(Node):
         self.add_ros_publisher(Quaternion, 'attitude')
         self.add_ros_publisher(Vector3, 'angular_velocity')
         self.add_ros_publisher(BatteryState, 'battery_state')
+        #my new publisher for vision position estimate
+        self.add_ros_publisher(PoseStamped, 'vision_position')
         self.tf_broadcaster = TransformBroadcaster(self)
         # connect MAVlink
-        self.declare_parameter('mavlink_connect_str', 'tcp:127.0.0.1:5760')
+        self.declare_parameter('mavlink_connect_str', '/dev/serial/by-id/usb-Auterion_PX4_FMU_v6X.x_0-if00')
+        #self.declare_parameter('mavlink_connect_str', 'udpin:127.0.0.1:14540')
         connect_str = self.get_parameter('mavlink_connect_str')
         self.get_logger().info(f'Connecting to {connect_str.value}')
         self.mav = mavutil.mavlink_connection(connect_str.value, 
@@ -53,6 +58,7 @@ class Macaw(Node):
         self.mav.wait_heartbeat()
         self.num_heartbeats = 1
         self.get_logger().info(f'Got heartbeat from ID {self.mav.target_system} component {self.mav.target_component}')
+        #print(help(self.mav.mav.vision_position_estimate_send))
         # set up inbound MAVlink subscribers
         self.mav_subscribers = {}
         self.last_mav_msgs = {}
@@ -67,6 +73,19 @@ class Macaw(Node):
         self.add_mav_subscriber('GLOBAL_POSITION_INT', self.mav_global_pos_callback, interval=1e6)
         self.add_mav_subscriber('POSITION_TARGET_GLOBAL_INT', self.mav_global_target_callback, interval=1e6)
         self.add_mav_subscriber('POSITION_TARGET_LOCAL_NED', self.mav_local_target_callback, interval=1e6)
+        self.add_ros_subscriber(Pose, 'cmd_pose_local', self.ros_local_pos_callback)
+        self.add_ros_subscriber(NavSatFix, 'cmd_pos_global', self.ros_global_pos_callback)
+        # --- setpoint streaming for PX4 offboard mode ---
+        # PX4 requires SET_POSITION_TARGET_LOCAL_NED at >2Hz continuously
+        # or it will exit offboard mode as a failsafe. We decouple the
+        # incoming ROS rate from the outgoing mavlink rate using a timer
+        # that always resends the last known target.
+        self.local_pos_target_lock = threading.Lock()
+        self.local_pos_target = None  # dict with x, y, z, yaw, or None until first msg
+        setpoint_rate_hz = 20.0
+        self.local_pos_setpoint_timer = self.create_timer(
+            1.0 / setpoint_rate_hz, self.send_local_pos_setpoint_callback)
+        
         self.get_logger().info(f'Ready for MAVlink messages: {self.mav_subscribers.keys()}')
         # timer for inbound MAVlink handling
         timer_period = 0.001  # seconds
@@ -80,6 +99,9 @@ class Macaw(Node):
         self.add_ros_subscriber(Twist, 'cmd_vel_global', self.ros_global_vel_callback)
         self.add_ros_subscriber(Pose, 'cmd_pose_local', self.ros_local_pos_callback)
         self.add_ros_subscriber(NavSatFix, 'cmd_pos_global', self.ros_global_pos_callback)
+        #my new nodes
+        self.add_ros_subscriber(PoseStamped, '/vicon/ActiveWand/ActiveWand', self.ros_vision_transform_callback)
+        self.add_ros_subscriber(PoseStamped, 'macaw_vision_pose', self.ros_vision_update_callback)
 
     def add_ros_publisher(self, ros_type, topic):
         topic_root = f'macaw/sysid{self.sysid}/'
@@ -87,6 +109,10 @@ class Macaw(Node):
                                         topic_root + topic,
                                         10)
         self.ros_publishers[topic] = new_pub
+
+# I want to add a node that subscribes to my vicon bridge, and then publishes mavlink messages in a form that the autopilot will
+#interpret as being part of its state estimation. It looks like a mavlink message called "VICON_POSITION ESTIMATE" would be sufficient.
+# Look at a command that seens position information in reverse, i.e. from mavlink to ros. i.e. mav_local_position_callback.
 
     def publish_ros(self,topic,msg,msg_type=None):
         if topic not in self.ros_publishers:
@@ -96,11 +122,15 @@ class Macaw(Node):
         self.ros_publishers[topic].publish(msg)
 
     def add_ros_subscriber(self, ros_type, topic, callback):
-        topic_root = f'macaw/sysid{self.sysid}/'
+        if topic[0]=='/':
+            topic_root = ""
+        else:
+            topic_root = f'macaw/sysid{self.sysid}/'
         new_sub = self.create_subscription(ros_type,
                                            topic_root + topic,
                                            callback,
                                            10)
+        print(topic_root + topic)
         return new_sub
 
     def add_mav_subscriber(self, mav_type, callback, interval=None):
@@ -150,7 +180,9 @@ class Macaw(Node):
         self.num_heartbeats = self.num_heartbeats + 1
         ros_msg = UInt64()
         ros_msg.data = self.num_heartbeats
-        self.ros_publishers['heartbeat_count'].publish(ros_msg)        
+        self.ros_publishers['heartbeat_count'].publish(ros_msg)
+        #TODO: Find a way to get this to fire once, during initialistion. Will quickly crowd out terminal.
+        #self.get_logger().info(f'Ze Autpilot issssss {self.last_mav_msgs["HEARTBEAT"].autopilot}')
 
     def mav_text_callback(self, mav_msg):
         msg_sender = mav_msg.get_srcSystem()
@@ -301,7 +333,7 @@ class Macaw(Node):
         self.mav.mav.command_long_send(self.sysid,
                                        1,
                                        mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
-                                       0, 0, 0, 0, 0, 0, 0,
+                                       0, 0, 0, 0, 0, math.nan, math.nan,
                                        takeoff_alt)
 
     def ros_land_callback(self, ros_msg):
@@ -311,14 +343,25 @@ class Macaw(Node):
                                        mavutil.mavlink.MAV_CMD_NAV_LAND,
                                        0, 0, 0, 0, 0, 0, 0, 0)
 
+#TODO: Change this to be agnsostic between PX4 and Ardupilot. Use mavutil to query the software stack during initiation and then use the appropriate command to change modes..
     def ros_mode_callback(self, ros_msg):
         new_mode_name = ros_msg.data
         if new_mode_name in self.mav.mode_mapping():
             new_mode_num = self.mav.mode_mapping()[new_mode_name]
-            self.get_logger().info(f'Changing to {new_mode_name} mode ({new_mode_num})')
-            self.mav.mav.set_mode_send(self.sysid,
-                                       mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                                       new_mode_num)
+            
+            # Safely unpack the tuple (29, 6, 0) into individual floats
+            base_mode = float(new_mode_num[0])  # This will be 29.0
+            main_mode = float(new_mode_num[1])  # This will be 6.0
+            sub_mode  = float(new_mode_num[2])  # This will be 0.0
+
+            self.mav.mav.command_long_send(self.sysid,
+                                           1,
+                                           mavutil.mavlink.MAV_CMD_DO_SET_MODE,
+                                           0,
+                                           base_mode,
+                                           main_mode,
+                                           sub_mode,
+                                           0, 0, 0, 0)
         else:
             self.get_logger().info(f'Unknown mode {new_mode_name}')
 
@@ -384,7 +427,7 @@ class Macaw(Node):
             yaw_rate=0
             # accelerations in NED frame [N], yaw, yaw_rate
             #  (all not supported yet, ignored in GCS Mavlink)
-        )
+        )    
 
     def ros_body_vel_callback(self, ros_msg):
         # command velocity in body aligned frame
@@ -417,45 +460,157 @@ class Macaw(Node):
 
     def ros_local_pos_callback(self, ros_msg):
         # command position in NED frame relative to home
-        yaw,pitch,roll = quat2euler((ros_msg.orientation.w,
-                                     ros_msg.orientation.x,
-                                     ros_msg.orientation.y,
-                                     ros_msg.orientation.z),'rzyx')
-        if roll**2>1e-9:
+        # this only updates the stored target - actual sending happens
+        # in send_local_pos_setpoint_callback, on a timer, so that PX4
+        # gets a continuous stream regardless of this topic's rate
+        yaw, pitch, roll = quat2euler((ros_msg.orientation.w,
+                                       ros_msg.orientation.x,
+                                       ros_msg.orientation.y,
+                                       ros_msg.orientation.z), 'rzyx')
+        if roll**2 > 1e-9:
             self.get_logger().info(f'Target roll {roll} too much - ignoring position command')
-        elif pitch**2>1e-9:
+            return
+        if pitch**2 > 1e-9:
             self.get_logger().info(f'Target pitch {pitch} too much - ignoring position command')
-        else:
-            self.mav.mav.set_position_target_local_ned_send(
-                0, # ms since boot
-                self.sysid, 1,
-                coordinate_frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-                type_mask=( # ignore everything except 3D position and yaw
-                    # mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE |
-                    # mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE |
-                    # mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE |
-                    # mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET |
-                    # mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE |
-                    mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
-                ),
-                x=ros_msg.position.x, 
-                y=ros_msg.position.y, 
-                z=ros_msg.position.z, # positions in NED
-                vx=0, vy=0, vz=0, # velocities in body NED frame [m/s]
-                afx=0, afy=0, afz=0,
-                yaw=yaw,
-                yaw_rate=0
-                # accelerations in NED frame [N], yaw, yaw_rate
-                #  (all not supported yet, ignored in GCS Mavlink)
-            )
+            return
 
+        with self.local_pos_target_lock:
+            self.local_pos_target = {
+                'x': ros_msg.position.x,
+                'y': ros_msg.position.y,
+                'z': ros_msg.position.z,
+                'yaw': yaw,
+            }
 
+    def ros_vision_update_callback(self, VisionEstimate):
+        self.mav.mav.vision_position_estimate_send(
+            int(self.get_clock().now().nanoseconds / 1e3),  # timestamp
+            VisionEstimate.x,
+            VisionEstimate.y,
+            VisionEstimate.z,
+            VisionEstimate.yaw,
+            VisionEstimate.pitch,
+            VisionEstimate.roll,
+            covariance=[float('nan')] + [0.0] * 20)
+
+    def ros_vision_transform_callback(self, ros_msg):
+        # command position in NED frame relative to home
+        # this only updates the stored target - actual sending happens
+        # in send_local_pos_setpoint_callback, on a timer, so that PX4
+        # gets a continuous stream regardless of this topic's rate
+        self.get_logger().info("TRANSFORM CALLBACK FIRED")
+        self.get_logger().info(f'the incoming ros msg from vicon bridge is: {ros_msg.pose.orientation}')
+        yaw = 0
+        pitch = 0
+        roll = 0
+        yaw, pitch, roll = quat2euler((ros_msg.pose.orientation.x,
+                                       ros_msg.pose.orientation.y,
+                                       ros_msg.pose.orientation.z,
+                                       ros_msg.pose.orientation.w), 'rzyx')
+        x = ros_msg.pose.position.x
+        y = ros_msg.pose.position.y
+        z = ros_msg.pose.position.z
+
+        class VisionEstimate:
+            pass
+
+        VisionEstimate.x = x
+        VisionEstimate.y = y
+        VisionEstimate.z = z
+        VisionEstimate.yaw = yaw
+        VisionEstimate.pitch = pitch
+        VisionEstimate.roll = roll
+
+        self.get_logger().info(f'Received vision position: X Position: {x}, Y Position: {y}, Z Position: {z}, Yaw Attitude: {yaw}, Pitch Attitude: {pitch}, Roll Attitude: {roll}')
+        self.ros_vision_update_callback(VisionEstimate)
+        
+
+#TODO: This needs to be made angostic of ardupilot or PX4. Use mavutil as a good and query the software stack during itiation.
+    def send_local_pos_setpoint_callback(self):
+        # fires on a timer, independent of ROS message arrival, to keep
+        # PX4 in offboard mode - resends the last valid target each time
+        with self.local_pos_target_lock:
+            target = self.local_pos_target
+
+        if target is None:
+            return  # nothing received yet, don't send garbage
+
+        self.mav.mav.set_position_target_local_ned_send(
+            0, # ms since boot
+            self.sysid, 1,
+            coordinate_frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            type_mask=( # ignore everything except 3D position and yaw
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+                mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+            ),
+            x=target['x'],
+            y=target['y'],
+            z=target['z'], # positions in NED
+            vx=0, vy=0, vz=0,
+            afx=0, afy=0, afz=0,
+            yaw=target['yaw'],
+            yaw_rate=0
+        )
+
+##ARDUPILOT COMMANDING LOCAL POSITION - 
+            #def ros_local_pos_callback(self, ros_msg):
+    #    # command position in NED frame relative to home
+    #    yaw,pitch,roll = quat2euler((ros_msg.orientation.w,
+    #                                 ros_msg.orientation.x,
+    #                                 ros_msg.orientation.y,
+    #                                 ros_msg.orientation.z),'rzyx')
+    #    if roll**2>1e-9:
+    #        self.get_logger().info(f'Target roll {roll} too much - ignoring position command')
+    #    elif pitch**2>1e-9:
+    #        self.get_logger().info(f'Target pitch {pitch} too much - ignoring position command')
+    #    else:
+    #        self.mav.mav.set_position_target_local_ned_send(
+    #            0, # ms since boot
+    #            self.sysid, 1,
+    #            coordinate_frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+    #            type_mask=( # ignore everything except 3D position and yaw
+    #                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE |
+    #                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE |
+    #                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_VX_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_VY_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+    #                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_FORCE_SET |
+    #                # mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE |
+    #                mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
+    #            ),
+    #            x=ros_msg.position.x, 
+    #            y=ros_msg.position.y, 
+    #            z=ros_msg.position.z, # positions in NED
+    #            vx=0, vy=0, vz=0, # velocities in body NED frame [m/s]
+    #            afx=0, afy=0, afz=0,
+    #            yaw=yaw,
+    #            yaw_rate=0
+    #            # accelerations in NED frame [N], yaw, yaw_rate
+    #            #  (all not supported yet, ignored in GCS Mavlink)
+    #        )
+     
+     #ARDUPILOT MODE SWITCHING - 
+        #def ros_mode_callback(self, ros_msg):
+     #   new_mode_name = ros_msg.data
+      #  if new_mode_name in self.mav.mode_mapping():
+       #     new_mode_num = self.mav.mode_mapping()[new_mode_name]
+        #    self.get_logger().info(f'Changing to {new_mode_name} mode ({new_mode_num})')
+         #   self.mav.mav.set_mode_send(self.sysid,
+          #                             mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+           #                            new_mode_num)
+        #else:
+        #    self.get_logger().info(f'Unknown mode {new_mode_name}')
+
+        
 def main(args=None):
     rclpy.init(args=args)
     macaw = Macaw()

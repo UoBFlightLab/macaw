@@ -5,7 +5,7 @@ services:
       --defaults /ardupilot/Tools/autotest/default_params/copter.parm --sysid=1
     image: murphy360/ardupilot-sitl-copter
     ports:
-      - 5762:5762
+      - 5762:5760
 
   macaw:
     build: .
@@ -14,24 +14,25 @@ services:
     environment:
       SITL_HOSTNAME: copter
     command: ros2 launch macaw macaw.launch.xml
+    entrypoint: ["/bin/bash", "-c", "chmod +x /ros_ws/src/macaw/macaw_entrypoint.sh && /ros_ws/src/macaw/macaw_entrypoint.sh"]
 
-  foxglove:
-    image: husarion/foxglove:1.74.1
-    ports:
-      - 8080:8080
-    volumes:
-      - ./foxglove-layout.json:/foxglove/default-layout.json
-    environment:
-      - DS_TYPE=rosbridge-websocket
-      - DS_PORT=9090
-      - UI_PORT=8080
-      - DISABLE_CACHE=true
-      - DISABLE_INTERACTION=false
+#  foxglove:
+#    image: husarion/foxglove:1.74.1
+#    ports:
+#      - 8080:8080
+#    volumes:
+#      - ./foxglove-layout.json:/foxglove/default-layout.json
+#    environment:
+#      - DS_TYPE=rosbridge-websocket
+#      - DS_PORT=9090
+#      - UI_PORT=8080
+#      - DISABLE_CACHE=true
+#      - DISABLE_INTERACTION=false
 
-  rosbridge:
-    image: husarion/rosbridge-server:humble
-    ports:
-      - 9090:9090
-    command: ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+#  rosbridge:
+#    image: husarion/rosbridge-server:humble
+#    ports:
+#      - 9090:9090
+#    command: ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 
 version: '3.8'
